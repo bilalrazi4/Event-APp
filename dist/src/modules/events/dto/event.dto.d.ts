@@ -6,7 +6,7 @@ export declare class CreateEventDto {
     startTime: string;
     endTime: string;
     organizerId: string;
-    inviteeIds?: string;
+    inviteeIds?: string[];
 }
 export declare class UpdateEventDto {
     title?: string;

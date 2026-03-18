@@ -18,10 +18,13 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const event_entity_1 = require("./entities/event.entity");
 const user_entity_1 = require("../users/entities/user.entity");
+const merge_service_1 = require("../merge/merge.service");
 let EventsService = class EventsService {
+    mergeService;
     eventsRepository;
     usersRepository;
-    constructor(eventsRepository, usersRepository) {
+    constructor(mergeService, eventsRepository, usersRepository) {
+        this.mergeService = mergeService;
         this.eventsRepository = eventsRepository;
         this.usersRepository = usersRepository;
     }
@@ -41,7 +44,23 @@ let EventsService = class EventsService {
             startTime: new Date(createEventDto.startTime),
             endTime: new Date(createEventDto.endTime),
         });
-        return this.eventsRepository.save(event);
+        const savedEvent = await this.eventsRepository.save(event);
+        const conflicts = await this.checkOrganizerConflicts(organizerId, savedEvent.id, savedEvent.startTime, savedEvent.endTime);
+        if (conflicts.length > 1) {
+            await this.mergeService.mergeEvent(conflicts);
+        }
+        return null;
+    }
+    async checkOrganizerConflicts(organizerId, excludeEventId, startTime, endTime) {
+        const conflictingEvents = await this.eventsRepository
+            .createQueryBuilder('event')
+            .leftJoinAndSelect('event.organizer', 'organizer')
+            .leftJoinAndSelect('event.invitees', 'invitees')
+            .where('organizer.id = :organizerId', { organizerId })
+            .andWhere('event.startTime < :endTime', { endTime })
+            .andWhere('event.endTime > :startTime', { startTime })
+            .getMany();
+        return conflictingEvents;
     }
     async findAll() {
         return this.eventsRepository.find({ relations: ['organizer', 'invitees'] });
@@ -97,9 +116,11 @@ let EventsService = class EventsService {
 exports.EventsService = EventsService;
 exports.EventsService = EventsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(event_entity_1.Event)),
-    __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __metadata("design:paramtypes", [typeorm_2.Repository,
+    __param(0, (0, common_1.Inject)((0, common_1.forwardRef)(() => merge_service_1.MergeService))),
+    __param(1, (0, typeorm_1.InjectRepository)(event_entity_1.Event)),
+    __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __metadata("design:paramtypes", [merge_service_1.MergeService,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], EventsService);
 //# sourceMappingURL=events.service.js.map

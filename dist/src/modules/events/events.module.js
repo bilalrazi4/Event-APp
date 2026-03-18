@@ -9,16 +9,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EventsModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const events_service_1 = require("./events.service");
 const events_controller_1 = require("./events.controller");
+const events_service_1 = require("./events.service");
 const event_entity_1 = require("./entities/event.entity");
 const user_entity_1 = require("../users/entities/user.entity");
+const merge_module_1 = require("../merge/merge.module");
 let EventsModule = class EventsModule {
 };
 exports.EventsModule = EventsModule;
 exports.EventsModule = EventsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([event_entity_1.Event, user_entity_1.User])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([event_entity_1.Event, user_entity_1.User]),
+            (0, common_1.forwardRef)(() => merge_module_1.MergeModule),
+        ],
         controllers: [events_controller_1.EventsController],
         providers: [events_service_1.EventsService],
         exports: [events_service_1.EventsService],

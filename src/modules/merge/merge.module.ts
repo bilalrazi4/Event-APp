@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MergeService } from './merge.service';
 import { MergeController } from './merge.controller';
@@ -10,10 +10,11 @@ import { AiModule } from '../ai/ai.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Event, AuditLog]),
-    EventsModule,
+    forwardRef(() => EventsModule),         // ← forwardRef on this side too
     AiModule,
   ],
-  controllers: [MergeController],
   providers: [MergeService],
+  controllers: [MergeController],
+  exports: [MergeService],                  // ← make sure this is here too
 })
-export class MergeModule {}
+export class MergeModule { }

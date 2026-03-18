@@ -22,11 +22,12 @@ exports.MergeModule = MergeModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([event_entity_1.Event, audit_log_entity_1.AuditLog]),
-            events_module_1.EventsModule,
+            (0, common_1.forwardRef)(() => events_module_1.EventsModule),
             ai_module_1.AiModule,
         ],
-        controllers: [merge_controller_1.MergeController],
         providers: [merge_service_1.MergeService],
+        controllers: [merge_controller_1.MergeController],
+        exports: [merge_service_1.MergeService],
     })
 ], MergeModule);
 //# sourceMappingURL=merge.module.js.map
