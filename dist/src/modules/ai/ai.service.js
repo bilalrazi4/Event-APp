@@ -26,7 +26,7 @@ let AiService = class AiService {
         if (cached) {
             return cached;
         }
-        const summary = `Merged team sync from overlapping events: ${titles.join(' + ')}.`;
+        const summary = `Merged this event from overlapping events: ${titles.join(' + ')}.`;
         await this.cacheManager.set(cacheKey, summary, 3600000);
         return summary;
     }

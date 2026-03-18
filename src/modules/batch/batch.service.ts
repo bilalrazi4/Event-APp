@@ -6,7 +6,7 @@ import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class BatchService {
-  constructor(private dataSource: DataSource) {}
+  constructor(private dataSource: DataSource) { }
 
   async batchInsert(eventsDto: CreateEventDto[]): Promise<{ count: number }> {
     if (eventsDto.length > 500) {

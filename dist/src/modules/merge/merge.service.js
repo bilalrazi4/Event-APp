@@ -82,7 +82,6 @@ let MergeService = MergeService_1 = class MergeService {
             });
             const savedEvent = await queryRunner.manager.save(newEvent);
             const auditLog = this.auditRepository.create({
-                oldEventIds,
                 newEventId: savedEvent.id,
             });
             await queryRunner.manager.save(auditLog);
@@ -105,7 +104,27 @@ let MergeService = MergeService_1 = class MergeService {
         }
     }
     async mergeEvent(conflicts, queryRunner) {
+        if (conflicts.length < 2) {
+            await queryRunner.commitTransaction();
+            return null;
+        }
         conflicts.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+        const oldEventsSnapshot = conflicts.map((e) => ({
+            id: e.id,
+            title: e.title,
+            description: e.description ?? null,
+            status: e.status,
+            startTime: e.startTime,
+            endTime: e.endTime,
+            organizerId: e.organizer?.id ?? null,
+            organizerName: e.organizer?.name ?? null,
+            invitees: e.invitees?.map((u) => ({
+                id: u.id,
+                name: u.name,
+                email: u.email,
+            })) ?? [],
+            mergedFrom: e.mergedFrom ?? [],
+        }));
         const titles = [...new Set(conflicts.map((e) => e.title))];
         const newTitle = titles.join(' + ');
         const statusPrecedence = [
@@ -144,7 +163,7 @@ let MergeService = MergeService_1 = class MergeService {
             });
             const savedEvent = await queryRunner.manager.save(newEvent);
             const auditLog = this.auditRepository.create({
-                oldEventIds,
+                oldEvents: oldEventsSnapshot,
                 newEventId: savedEvent.id,
             });
             await queryRunner.manager.save(auditLog);

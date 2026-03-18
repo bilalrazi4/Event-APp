@@ -90,7 +90,7 @@ export class MergeService {
 
       // Create Audit Log
       const auditLog = this.auditRepository.create({
-        oldEventIds,
+        //oldEventIds,
         newEventId: savedEvent.id,
       });
       await queryRunner.manager.save(auditLog);
@@ -123,8 +123,32 @@ export class MergeService {
 
   async mergeEvent(conflicts: Event[], queryRunner: QueryRunner): Promise<Event | null> {
 
+    if (conflicts.length < 2) {
+      await queryRunner.commitTransaction();
+      return null;
+    }
     // this sorts the conflicted events by eariest start time of an event
     conflicts.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+
+
+    //keeping track for auditlog
+    const oldEventsSnapshot = conflicts.map((e) => ({
+      id: e.id,
+      title: e.title,
+      description: e.description ?? null,
+      status: e.status,
+      startTime: e.startTime,
+      endTime: e.endTime,
+      organizerId: e.organizer?.id ?? null,
+      organizerName: e.organizer?.name ?? null,
+      invitees: e.invitees?.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+      })) ?? [],
+      mergedFrom: e.mergedFrom ?? [],
+    }));
 
     // concatinating the tites of the conficted evnets
     const titles = [...new Set(conflicts.map((e) => e.title))];
@@ -163,7 +187,8 @@ export class MergeService {
     const invitees = Array.from(inviteeMap.values());
     const organizer = conflicts[0].organizer;
 
-    // getting id's for audit log
+
+    // getting id's for mergedFrom
     const oldEventIds = conflicts.map((e) => e.id);
 
 
@@ -181,7 +206,7 @@ export class MergeService {
 
       // Create Audit Log
       const auditLog = this.auditRepository.create({
-        oldEventIds,
+        oldEvents: oldEventsSnapshot,
         newEventId: savedEvent.id,
       });
       await queryRunner.manager.save(auditLog);

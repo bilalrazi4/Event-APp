@@ -13,7 +13,7 @@ exports.AuditLog = void 0;
 const typeorm_1 = require("typeorm");
 let AuditLog = class AuditLog {
     id;
-    oldEventIds;
+    oldEvents;
     newEventId;
     timestamp;
 };
@@ -25,7 +25,7 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ type: 'jsonb' }),
     __metadata("design:type", Array)
-], AuditLog.prototype, "oldEventIds", void 0);
+], AuditLog.prototype, "oldEvents", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
