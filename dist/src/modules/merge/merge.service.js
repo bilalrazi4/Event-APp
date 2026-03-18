@@ -104,10 +104,7 @@ let MergeService = MergeService_1 = class MergeService {
             await queryRunner.release();
         }
     }
-    async mergeEvent(conflicts) {
-        if (conflicts.length < 2) {
-            return null;
-        }
+    async mergeEvent(conflicts, queryRunner) {
         conflicts.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
         const titles = [...new Set(conflicts.map((e) => e.title))];
         const newTitle = titles.join(' + ');
@@ -135,9 +132,6 @@ let MergeService = MergeService_1 = class MergeService {
         const invitees = Array.from(inviteeMap.values());
         const organizer = conflicts[0].organizer;
         const oldEventIds = conflicts.map((e) => e.id);
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
         try {
             const newEvent = this.eventsRepository.create({
                 title: newTitle,
@@ -154,6 +148,7 @@ let MergeService = MergeService_1 = class MergeService {
                 newEventId: savedEvent.id,
             });
             await queryRunner.manager.save(auditLog);
+            await queryRunner.manager.delete(event_entity_1.Event, { id: (0, typeorm_2.In)(oldEventIds) });
             await queryRunner.commitTransaction();
             const summary = await this.aiService.generateSummary(titles);
             await this.eventsRepository.update(savedEvent.id, {

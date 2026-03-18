@@ -14,3 +14,4 @@ export class AuditLog {
   @CreateDateColumn()
   timestamp: Date;
 }
+

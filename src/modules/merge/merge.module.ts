@@ -10,11 +10,11 @@ import { AiModule } from '../ai/ai.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Event, AuditLog]),
-    forwardRef(() => EventsModule),         // ← forwardRef on this side too
+    forwardRef(() => EventsModule),
     AiModule,
   ],
   providers: [MergeService],
   controllers: [MergeController],
-  exports: [MergeService],                  // ← make sure this is here too
+  exports: [MergeService],
 })
 export class MergeModule { }

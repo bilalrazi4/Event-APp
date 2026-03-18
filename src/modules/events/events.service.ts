@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, MoreThan, In } from 'typeorm';
+import { Repository, In, DataSource, QueryRunner } from 'typeorm';
 import { Event } from './entities/event.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateEventDto, UpdateEventDto } from './dto/event.dto';
@@ -9,6 +9,7 @@ import { MergeService } from '../merge/merge.service';
 @Injectable()
 export class EventsService {
   constructor(
+    private dataSource: DataSource,
     @Inject(forwardRef(() => MergeService))
     private mergeService: MergeService,
     @InjectRepository(Event)
@@ -18,55 +19,71 @@ export class EventsService {
   ) { }
 
   async create(createEventDto: CreateEventDto): Promise<Event | null> {
-    const { organizerId, inviteeIds, ...eventData } = createEventDto;
 
-    const organizer = await this.usersRepository.findOneBy({ id: organizerId });
-    if (!organizer) {
-      throw new NotFoundException(`User with ID ${organizerId} not found`);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const { organizerId, inviteeIds, ...eventData } = createEventDto;
+
+      const organizer = await this.usersRepository.findOneBy({ id: organizerId });
+
+      if (!organizer) {
+        throw new NotFoundException(`User with ID ${organizerId} not found`);
+      }
+
+      // adding this because an organizer can be an attendee as well
+      inviteeIds?.push(organizerId);
+      const invitees = inviteeIds?.length
+        ? await this.usersRepository.findBy({ id: In(inviteeIds) })
+        : [];
+
+      const event = this.eventsRepository.create({
+        ...eventData,
+        organizer,
+        invitees,
+        startTime: new Date(createEventDto.startTime),
+        endTime: new Date(createEventDto.endTime),
+      });
+
+      const savedEvent = await queryRunner.manager.save(event);
+
+      const conflicts = await this.checkOrganizerConflicts(organizerId, savedEvent.startTime, savedEvent.endTime, queryRunner);
+
+      if (conflicts.length > 1) {
+        const mergedEvent = await this.mergeService.mergeEvent(conflicts, queryRunner);
+        return mergedEvent;
+      }
+
+      await queryRunner.commitTransaction();
+      return savedEvent;
     }
 
-    const invitees = inviteeIds?.length
-      ? await this.usersRepository.findBy({ id: In(inviteeIds) })
-      : [];
-
-    const event = this.eventsRepository.create({
-      ...eventData,
-      organizer,
-      invitees,
-      startTime: new Date(createEventDto.startTime),
-      endTime: new Date(createEventDto.endTime),
-    });
-
-
-
-    const savedEvent = await this.eventsRepository.save(event);
-
-    const conflicts = await this.checkOrganizerConflicts(
-      organizerId,
-      savedEvent.id,
-      savedEvent.startTime,
-      savedEvent.endTime,
-    );
-
-    if (conflicts.length > 1) {
-      await this.mergeService.mergeEvent(conflicts);
+    catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
     }
 
-    return null;
+    finally {
+
+      if (!queryRunner.isReleased) {
+        await queryRunner.release();
+      }
+    }
+
   }
 
 
-  private async checkOrganizerConflicts(organizerId: string, excludeEventId: string, startTime: Date, endTime: Date,): Promise<Event[]> {
-    const conflictingEvents = await this.eventsRepository
-      .createQueryBuilder('event')
+  private async checkOrganizerConflicts(organizerId: string, startTime: Date, endTime: Date, queryRunner: QueryRunner): Promise<Event[]> {
+    return queryRunner.manager
+      .createQueryBuilder(Event, 'event')
       .leftJoinAndSelect('event.organizer', 'organizer')
       .leftJoinAndSelect('event.invitees', 'invitees')
       .where('organizer.id = :organizerId', { organizerId })
-      .andWhere('event.startTime < :endTime', { endTime })
-      .andWhere('event.endTime > :startTime', { startTime })
+      .andWhere('event.startTime <= :endTime', { endTime })
+      .andWhere('event.endTime >= :startTime', { startTime })
       .getMany();
-
-    return conflictingEvents;
   }
 
   async findAll(): Promise<Event[]> {

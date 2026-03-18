@@ -5,6 +5,7 @@ import { Event, EventStatus } from '../events/entities/event.entity';
 import { AuditLog } from '../audit/entities/audit-log.entity';
 import { EventsService } from '../events/events.service';
 import { AiService } from '../ai/ai.service';
+import { QueryRunner } from 'typeorm/browser';
 
 @Injectable()
 export class MergeService {
@@ -120,11 +121,7 @@ export class MergeService {
   }
 
 
-  async mergeEvent(conflicts: Event[]): Promise<Event | null> {
-
-    if (conflicts.length < 2) {
-      return null; // Nothing to merge
-    }
+  async mergeEvent(conflicts: Event[], queryRunner: QueryRunner): Promise<Event | null> {
 
     // this sorts the conflicted events by eariest start time of an event
     conflicts.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
@@ -158,7 +155,7 @@ export class MergeService {
     const startTime = conflicts[0].startTime;
     const endTime = new Date(Math.max(...conflicts.map((e) => e.endTime.getTime())));
 
-    // Participants: Union of invitees
+    // taking union of all the invitees
     const inviteeMap = new Map();
     conflicts.forEach(e => {
       e.invitees?.forEach(u => inviteeMap.set(u.id, u));
@@ -166,16 +163,11 @@ export class MergeService {
     const invitees = Array.from(inviteeMap.values());
     const organizer = conflicts[0].organizer;
 
-    // IDs for mergedFrom and AuditLog
+    // getting id's for audit log
     const oldEventIds = conflicts.map((e) => e.id);
 
-    // 3. Execute Merge in a Transaction
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
 
     try {
-      // Create New Event
       const newEvent = this.eventsRepository.create({
         title: newTitle,
         status: latestStatus,
@@ -195,7 +187,7 @@ export class MergeService {
       await queryRunner.manager.save(auditLog);
 
       // Delete Old Events
-      //await queryRunner.manager.delete(Event, { id: In(oldEventIds) });
+      await queryRunner.manager.delete(Event, { id: In(oldEventIds) });
 
       await queryRunner.commitTransaction();
 
@@ -210,11 +202,13 @@ export class MergeService {
       // Reload event to return the updated description
       const updatedEvent = await this.eventsRepository.findOneBy({ id: savedEvent.id });
       return updatedEvent;
-    } catch (err) {
+    }
+    catch (err) {
       this.logger.error('Merge failed', err);
       await queryRunner.rollbackTransaction();
       throw err;
-    } finally {
+    }
+    finally {
       await queryRunner.release();
     }
   }

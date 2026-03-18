@@ -20,47 +20,65 @@ const event_entity_1 = require("./entities/event.entity");
 const user_entity_1 = require("../users/entities/user.entity");
 const merge_service_1 = require("../merge/merge.service");
 let EventsService = class EventsService {
+    dataSource;
     mergeService;
     eventsRepository;
     usersRepository;
-    constructor(mergeService, eventsRepository, usersRepository) {
+    constructor(dataSource, mergeService, eventsRepository, usersRepository) {
+        this.dataSource = dataSource;
         this.mergeService = mergeService;
         this.eventsRepository = eventsRepository;
         this.usersRepository = usersRepository;
     }
     async create(createEventDto) {
-        const { organizerId, inviteeIds, ...eventData } = createEventDto;
-        const organizer = await this.usersRepository.findOneBy({ id: organizerId });
-        if (!organizer) {
-            throw new common_1.NotFoundException(`User with ID ${organizerId} not found`);
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            const { organizerId, inviteeIds, ...eventData } = createEventDto;
+            const organizer = await this.usersRepository.findOneBy({ id: organizerId });
+            if (!organizer) {
+                throw new common_1.NotFoundException(`User with ID ${organizerId} not found`);
+            }
+            inviteeIds?.push(organizerId);
+            const invitees = inviteeIds?.length
+                ? await this.usersRepository.findBy({ id: (0, typeorm_2.In)(inviteeIds) })
+                : [];
+            const event = this.eventsRepository.create({
+                ...eventData,
+                organizer,
+                invitees,
+                startTime: new Date(createEventDto.startTime),
+                endTime: new Date(createEventDto.endTime),
+            });
+            const savedEvent = await queryRunner.manager.save(event);
+            const conflicts = await this.checkOrganizerConflicts(organizerId, savedEvent.startTime, savedEvent.endTime, queryRunner);
+            if (conflicts.length > 1) {
+                const mergedEvent = await this.mergeService.mergeEvent(conflicts, queryRunner);
+                return mergedEvent;
+            }
+            await queryRunner.commitTransaction();
+            return savedEvent;
         }
-        const invitees = inviteeIds?.length
-            ? await this.usersRepository.findBy({ id: (0, typeorm_2.In)(inviteeIds) })
-            : [];
-        const event = this.eventsRepository.create({
-            ...eventData,
-            organizer,
-            invitees,
-            startTime: new Date(createEventDto.startTime),
-            endTime: new Date(createEventDto.endTime),
-        });
-        const savedEvent = await this.eventsRepository.save(event);
-        const conflicts = await this.checkOrganizerConflicts(organizerId, savedEvent.id, savedEvent.startTime, savedEvent.endTime);
-        if (conflicts.length > 1) {
-            await this.mergeService.mergeEvent(conflicts);
+        catch (err) {
+            await queryRunner.rollbackTransaction();
+            throw err;
         }
-        return null;
+        finally {
+            if (!queryRunner.isReleased) {
+                await queryRunner.release();
+            }
+        }
     }
-    async checkOrganizerConflicts(organizerId, excludeEventId, startTime, endTime) {
-        const conflictingEvents = await this.eventsRepository
-            .createQueryBuilder('event')
+    async checkOrganizerConflicts(organizerId, startTime, endTime, queryRunner) {
+        return queryRunner.manager
+            .createQueryBuilder(event_entity_1.Event, 'event')
             .leftJoinAndSelect('event.organizer', 'organizer')
             .leftJoinAndSelect('event.invitees', 'invitees')
             .where('organizer.id = :organizerId', { organizerId })
-            .andWhere('event.startTime < :endTime', { endTime })
-            .andWhere('event.endTime > :startTime', { startTime })
+            .andWhere('event.startTime <= :endTime', { endTime })
+            .andWhere('event.endTime >= :startTime', { startTime })
             .getMany();
-        return conflictingEvents;
     }
     async findAll() {
         return this.eventsRepository.find({ relations: ['organizer', 'invitees'] });
@@ -116,10 +134,11 @@ let EventsService = class EventsService {
 exports.EventsService = EventsService;
 exports.EventsService = EventsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Inject)((0, common_1.forwardRef)(() => merge_service_1.MergeService))),
-    __param(1, (0, typeorm_1.InjectRepository)(event_entity_1.Event)),
-    __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __metadata("design:paramtypes", [merge_service_1.MergeService,
+    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => merge_service_1.MergeService))),
+    __param(2, (0, typeorm_1.InjectRepository)(event_entity_1.Event)),
+    __param(3, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __metadata("design:paramtypes", [typeorm_2.DataSource,
+        merge_service_1.MergeService,
         typeorm_2.Repository,
         typeorm_2.Repository])
 ], EventsService);
