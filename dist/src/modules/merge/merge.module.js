@@ -15,6 +15,7 @@ const event_entity_1 = require("../events/entities/event.entity");
 const audit_log_entity_1 = require("../audit/entities/audit-log.entity");
 const events_module_1 = require("../events/events.module");
 const ai_module_1 = require("../ai/ai.module");
+const batch_module_1 = require("../batch/batch.module");
 let MergeModule = class MergeModule {
 };
 exports.MergeModule = MergeModule;
@@ -23,6 +24,7 @@ exports.MergeModule = MergeModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forFeature([event_entity_1.Event, audit_log_entity_1.AuditLog]),
             (0, common_1.forwardRef)(() => events_module_1.EventsModule),
+            (0, common_1.forwardRef)(() => batch_module_1.BatchModule),
             ai_module_1.AiModule,
         ],
         providers: [merge_service_1.MergeService],

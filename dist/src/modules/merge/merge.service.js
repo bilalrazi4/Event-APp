@@ -103,7 +103,7 @@ let MergeService = MergeService_1 = class MergeService {
             await queryRunner.release();
         }
     }
-    async mergeEvent(conflicts, queryRunner) {
+    async mergeEvent(conflicts, queryRunner, isExternalTransaction = false) {
         if (conflicts.length < 2) {
             await queryRunner.commitTransaction();
             return null;
@@ -168,21 +168,36 @@ let MergeService = MergeService_1 = class MergeService {
             });
             await queryRunner.manager.save(auditLog);
             await queryRunner.manager.delete(event_entity_1.Event, { id: (0, typeorm_2.In)(oldEventIds) });
-            await queryRunner.commitTransaction();
-            const summary = await this.aiService.generateSummary(titles);
-            await this.eventsRepository.update(savedEvent.id, {
-                description: summary,
-            });
-            const updatedEvent = await this.eventsRepository.findOneBy({ id: savedEvent.id });
-            return updatedEvent;
+            if (!isExternalTransaction) {
+                await queryRunner.commitTransaction();
+                let summary;
+                try {
+                    summary = await this.aiService.generateSummary(titles);
+                }
+                catch {
+                    summary = `Merged event: ${newTitle}`;
+                }
+                await this.eventsRepository.update(savedEvent.id, { description: summary });
+                return this.eventsRepository.findOne({
+                    where: { id: savedEvent.id },
+                    relations: ['organizer', 'invitees'],
+                });
+            }
+            else {
+                return savedEvent;
+            }
         }
         catch (err) {
             this.logger.error('Merge failed', err);
-            await queryRunner.rollbackTransaction();
+            if (!isExternalTransaction) {
+                await queryRunner.rollbackTransaction();
+            }
             throw err;
         }
         finally {
-            await queryRunner.release();
+            if (!isExternalTransaction && !queryRunner.isReleased) {
+                await queryRunner.release();
+            }
         }
     }
 };

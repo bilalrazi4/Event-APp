@@ -3,7 +3,5 @@ import { CreateEventDto } from '../events/dto/event.dto';
 export declare class BatchController {
     private readonly batchService;
     constructor(batchService: BatchService);
-    batchInsert(events: CreateEventDto[]): Promise<{
-        count: number;
-    }>;
+    batchInsert(events: CreateEventDto[]): Promise<import("./batch.service").BatchInsertResult>;
 }

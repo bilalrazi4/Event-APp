@@ -4,7 +4,7 @@ import { CreateEventDto, UpdateEventDto } from './dto/event.dto';
 
 @Controller('events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(private readonly eventsService: EventsService) { }
 
   @Post()
   create(@Body() createEventDto: CreateEventDto) {
@@ -31,8 +31,4 @@ export class EventsController {
     return this.eventsService.remove(id);
   }
 
-  @Get('conflicts/:userId')
-  findConflicts(@Param('userId') userId: string) {
-    return this.eventsService.findConflicts(userId);
-  }
 }

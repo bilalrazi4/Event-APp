@@ -118,32 +118,5 @@ export class EventsService {
     }
   }
 
-  async findConflicts(userId: string): Promise<Event[]> {
-    // Find all events where the user is either organizer or invitee
-    const userEvents = await this.eventsRepository
-      .createQueryBuilder('event')
-      .leftJoin('event.organizer', 'organizer')
-      .leftJoin('event.invitees', 'invitee')
-      .where('organizer.id = :userId OR invitee.id = :userId', { userId })
-      .getMany();
 
-    const conflicts: Event[] = [];
-
-    // Simple O(N^2) conflict detection for a single user's schedule
-    // In production, this can be optimized with interval trees if N is large.
-    for (let i = 0; i < userEvents.length; i++) {
-      for (let j = i + 1; j < userEvents.length; j++) {
-        const e1 = userEvents[i];
-        const e2 = userEvents[j];
-
-        // Overlap condition: (StartA < EndB) and (EndA > StartB)
-        if (e1.startTime < e2.endTime && e1.endTime > e2.startTime) {
-          if (!conflicts.includes(e1)) conflicts.push(e1);
-          if (!conflicts.includes(e2)) conflicts.push(e2);
-        }
-      }
-    }
-
-    return conflicts;
-  }
 }
