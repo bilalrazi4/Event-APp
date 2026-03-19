@@ -1,23 +1,5 @@
-# Event Collaboration API
 
-A production-ready NestJS backend for managing events with conflict detection, automated merging, and AI-powered summarization.
-
-## Tech Stack
-- **Framework**: NestJS
-- **ORM**: TypeORM
-- **Database**: PostgreSQL
-- **Cache**: Redis
-- **Validation**: class-validator
-- **Testing**: Jest
-
-## Features
-- **Modular Architecture**: Separate modules for users, events, merge logic, AI, auditing, and batch processing.
-- **Conflict Detection**: Detects overlapping events for users.
-- **Automated Merging**: Merges conflicting events into a single entry with transaction safety.
-- **AI Summarization**: Generates event summaries via a mocked LLM synchronously, mapped with Redis caching.
-- **Batch Processing**: High-performance bulk insert (up to 500 events) in under 2 seconds.
-
-## Setup
+## HOW TO RUN PROJECTS & TESTS
 
 1. **Install Dependencies**:
    ```bash
@@ -33,52 +15,44 @@ A production-ready NestJS backend for managing events with conflict detection, a
    npm run start:dev
    ```
 
-## Testing
-```bash
-# Unit tests
-npm run test
+5. **TESTING**
+   I haven't implemented the test cases for this project and also not the optional features.
 
-# E2E tests
-npm run test:e2e
-```
 
-## API usage examples
 
-### 1. Create User
-```bash
-curl -X POST http://localhost:3000/users \
-  -H "Content-Type: application/json" \
-  -d '{"name": "John Doe", "email": "john@example.com"}'
-```
+## AI TOOL USED
 
-### 2. Create Event
-```bash
-curl -X POST http://localhost:3000/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Team Sync",
-    "startTime": "2026-03-20T10:00:00Z",
-    "endTime": "2026-03-20T11:00:00Z",
-    "organizerId": "USER_ID"
-  }'
-```
+During development I used Antigravity for generating the boiler codes for this project
 
-### 3. Detect Conflicts
-```bash
-curl http://localhost:3000/events/conflicts/USER_ID
-```
+## REASONING ABOUT MERGED ALGORITHM
 
-### 4. Merge Events
-```bash
-curl -X POST http://localhost:3000/events/merge-all/USER_ID
-```
+Now as per my understanding of this project through the document, I came to understanding that there would be multiple users and lets say a user can create events and invite some other users in the  events. Now lets say a user creates an event X having some start and endtime it directly gets inserted into the table but now lets say the same user creates another event having some other invitees then this could be a conflicting event on the basis of start and endtime intervals of both the events.
 
-### 5. Batch Insert
-```bash
-curl -X POST http://localhost:3000/events/batch \
-  -H "Content-Type: application/json" \
-  -d '[
-    {"title": "Event 1", "startTime": "...", "endTime": "...", "organizerId": "..."},
-    {"title": "Event 2", "startTime": "...", "endTime": "...", "organizerId": "..."}
-  ]'
-```
+
+I have done the implementation in a way that when a merge happens between multiple conflicting events the old data i.e. rows in Events table gets deleted and their invitees gets deleted as well after proper insertion of their history in AuditLogs table  and instead the new mergedEvent row is inserted in the Events Table and Union of both event Invitees after removing the duplicates is inserted into the Event_Invitee_users table that is a junction table because of the one to many relation of user and event table.
+
+Now because of this approach 
+## POST /events/merge-all/:userId
+## GET /events/conflicts/:userId
+
+These two api's weren't created because at any moment we wouldn't have conflicting events in the database intead all the conflicting events would have already been merged and the old rows would get deleted only the merged data would have remain in the tables.
+
+
+Now merging algorithm is being utilized here in two ways:
+
+1. when a new event is created by a user that already has created an event and the newly created event could cause conflict in this case mergeEvent gets called 
+
+2. when batch insertion is done and alot of events are created then mergeEvent is being called for particular conflicting groups, these conflicting groups has conflicting events stored in it for a particular user.
+
+
+## AI INTEGRATION
+
+I have mocked up AI summary generation in the AI service, and the mockup AI generation is being utilizied in two ways.
+
+1. Batch Insertion: When batch insertion is done it first inserts all the MergedEvents in the table and then it sends the call for Mockup AI summary generation and then it updates the description for each MergedEvent. In this way the Batch insertion doesn't rely on AI summary Generation
+
+2. On Single Event Creation: When a single event is created through /events/create api and a merge happens than after the insertion of Merge Event mock AI summary generation Api gets called.
+
+
+
+
