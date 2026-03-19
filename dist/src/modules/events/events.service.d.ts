@@ -15,5 +15,4 @@ export declare class EventsService {
     findOne(id: string): Promise<Event>;
     update(id: string, updateEventDto: UpdateEventDto): Promise<Event>;
     remove(id: string): Promise<void>;
-    findConflicts(userId: string): Promise<Event[]>;
 }

@@ -8,5 +8,4 @@ export declare class EventsController {
     findOne(id: string): Promise<import("./entities/event.entity").Event>;
     update(id: string, updateEventDto: UpdateEventDto): Promise<import("./entities/event.entity").Event>;
     remove(id: string): Promise<void>;
-    findConflicts(userId: string): Promise<import("./entities/event.entity").Event[]>;
 }

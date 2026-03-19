@@ -84,11 +84,9 @@ let BatchService = BatchService_1 = class BatchService {
                     }
                 }
             }
-            this.logger.log(`Phase 4 — Conflict groups: ${allConflictGroups.length}, Clean: ${nonConflictEvents.length}`);
             const mergedEvents = [];
             const aiQueue = [];
             for (const conflictGroup of allConflictGroups) {
-                this.logger.log(`Merging: [${conflictGroup.map((e) => e.title).join(' + ')}]`);
                 const mergedEvent = await this.mergeService.mergeEvent(conflictGroup, queryRunner, true);
                 if (mergedEvent) {
                     mergedEvents.push(mergedEvent);
@@ -99,14 +97,12 @@ let BatchService = BatchService_1 = class BatchService {
                 }
             }
             await queryRunner.commitTransaction();
-            this.logger.log(`Transaction committed — ${mergedEvents.length} merges done`);
             for (const { id, titles } of aiQueue) {
                 let summary;
                 try {
                     summary = await this.aiService.generateSummary(titles);
                 }
                 catch (aiErr) {
-                    this.logger.warn(`AI failed for ${id}, using fallback`);
                     summary = `Merged event: ${titles.join(' + ')}`;
                 }
                 await this.eventsRepository.update(id, { description: summary });

@@ -108,28 +108,6 @@ let EventsService = class EventsService {
             throw new common_1.NotFoundException(`Event with ID ${id} not found`);
         }
     }
-    async findConflicts(userId) {
-        const userEvents = await this.eventsRepository
-            .createQueryBuilder('event')
-            .leftJoin('event.organizer', 'organizer')
-            .leftJoin('event.invitees', 'invitee')
-            .where('organizer.id = :userId OR invitee.id = :userId', { userId })
-            .getMany();
-        const conflicts = [];
-        for (let i = 0; i < userEvents.length; i++) {
-            for (let j = i + 1; j < userEvents.length; j++) {
-                const e1 = userEvents[i];
-                const e2 = userEvents[j];
-                if (e1.startTime < e2.endTime && e1.endTime > e2.startTime) {
-                    if (!conflicts.includes(e1))
-                        conflicts.push(e1);
-                    if (!conflicts.includes(e2))
-                        conflicts.push(e2);
-                }
-            }
-        }
-        return conflicts;
-    }
 };
 exports.EventsService = EventsService;
 exports.EventsService = EventsService = __decorate([

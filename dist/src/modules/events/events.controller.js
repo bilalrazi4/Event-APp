@@ -36,9 +36,6 @@ let EventsController = class EventsController {
     remove(id) {
         return this.eventsService.remove(id);
     }
-    findConflicts(userId) {
-        return this.eventsService.findConflicts(userId);
-    }
 };
 exports.EventsController = EventsController;
 __decorate([
@@ -76,13 +73,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], EventsController.prototype, "remove", null);
-__decorate([
-    (0, common_1.Get)('conflicts/:userId'),
-    __param(0, (0, common_1.Param)('userId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], EventsController.prototype, "findConflicts", null);
 exports.EventsController = EventsController = __decorate([
     (0, common_1.Controller)('events'),
     __metadata("design:paramtypes", [events_service_1.EventsService])

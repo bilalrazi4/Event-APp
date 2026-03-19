@@ -12,6 +12,5 @@ export declare class MergeService {
     private aiService;
     private readonly logger;
     constructor(dataSource: DataSource, eventsService: EventsService, eventsRepository: Repository<Event>, auditRepository: Repository<AuditLog>, aiService: AiService);
-    mergeAllForUser(userId: string): Promise<Event | null>;
     mergeEvent(conflicts: Event[], queryRunner: QueryRunner, isExternalTransaction?: boolean): Promise<Event | null>;
 }
