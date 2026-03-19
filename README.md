@@ -16,13 +16,13 @@
    ```
 
 5. **TESTING**
-   I haven't implemented the test cases for this project and also not the optional features.
+   I haven't implemented the test cases for this project and also not the optional features (Docker, Throttling ..).
 
 
 
 ## AI TOOL USED
 
-During development I used Antigravity for generating the boiler codes for this project
+During development I used Antigravity for generating the boiler plates for this project
 
 ## REASONING ABOUT MERGED ALGORITHM
 
@@ -52,7 +52,3 @@ I have mocked up AI summary generation in the AI service, and the mockup AI gene
 1. Batch Insertion: When batch insertion is done it first inserts all the MergedEvents in the table and then it sends the call for Mockup AI summary generation and then it updates the description for each MergedEvent. In this way the Batch insertion doesn't rely on AI summary Generation
 
 2. On Single Event Creation: When a single event is created through /events/create api and a merge happens than after the insertion of Merge Event mock AI summary generation Api gets called.
-
-
-
-
